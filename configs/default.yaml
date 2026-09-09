@@ -1,0 +1,35 @@
+video:
+  target_width: 960
+  max_frames: 100
+  min_sharpness: 4.0
+  min_move_m: 0.8
+  max_time_gap_s: 1.0
+
+camera:
+  assume_nadir_if_missing_attitude: false
+  default_hfov_deg: 70.0
+
+stereo:
+  pair_skip: 2
+  num_disparities: 128
+  block_size: 5
+  uniqueness_ratio: 10
+  speckle_window_size: 80
+  speckle_range: 2
+  min_depth_m: 2.0
+  max_depth_m: 400.0
+
+cloud:
+  voxel_m: 0.25
+  statistical_nb: 20
+  statistical_std: 2.0
+  max_points: 600000
+  dynamic_flow_threshold: 6.0
+
+mesh:
+  sample_points: 80000
+  max_edge_m: 3.0
+
+eval:
+  gcp_max_rmse_m: 2.5
+  min_density_per_m2: 8.0
