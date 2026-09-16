@@ -30,11 +30,12 @@ def generate_model(
     is_synthetic: bool = Form(False)
 ):
     run_dir = OUTPUTS_DIR / "current_run"
-    if run_dir.exists():
-        shutil.rmtree(run_dir)
-    run_dir.mkdir(parents=True, exist_ok=True)
     
     try:
+        if run_dir.exists():
+            shutil.rmtree(run_dir, ignore_errors=True)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        
         if is_synthetic:
             info = generate_synthetic_mission(run_dir / "mission")
             vid_path = info["video"]

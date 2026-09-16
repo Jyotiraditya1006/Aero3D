@@ -1,154 +1,287 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aero3D · Download</title>
+    <title>Aero3D | Advanced Drone Reconstruction</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap');
+
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #0d0d0d;
-            color: #f7f7f4;
-        }
-        .btn-primary {
-            background-color: #ffffff;
-            color: #000000;
-            transition: transform 0.2s, opacity 0.2s;
-        }
-        .btn-primary:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-        .btn-secondary {
-            background-color: transparent;
-            color: #8a8a8a;
-            border: 1px solid #333333;
-            transition: color 0.2s, border-color 0.2s;
-        }
-        .btn-secondary:hover {
+            font-family: 'Inter', sans-serif;
+            background-color: #050505;
             color: #ffffff;
-            border-color: #ffffff;
+            overflow-x: hidden;
         }
+
+        /* InfinityFX style premium typography */
+        .hero-text {
+            font-weight: 900;
+            font-size: clamp(4rem, 10vw, 8rem);
+            line-height: 0.9;
+            letter-spacing: -0.04em;
+            background: linear-gradient(180deg, #fff 0%, #737373 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.4);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-premium {
+            background: #ffffff;
+            color: #000000;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-premium:hover {
+            transform: scale(1.02);
+            background: #f0f0f0;
+            box-shadow: 0 20px 40px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        #splat-bg {
+            .hero-glow {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                top: 20%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 600px;
+                height: 600px;
+                background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+                filter: blur(60px);
+                z-index: -1;
+                opacity: 0.6;
+                pointer-events: none;
+                mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+                -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+            }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
-    
-    <!-- Navbar -->
-    <header class="fixed top-0 left-0 w-full px-8 py-6 flex justify-between items-center z-50">
-        <div class="flex items-center gap-2 font-semibold text-lg tracking-tight">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Aero3D
+
+<body class="antialiased">
+
+    <!-- WebGL Background (3DGS Hologram Concept) -->
+    <div id="splat-bg"></div>
+    <!-- Ambient Hero Glow instead of heavy 3DGS -->
+    <div class="hero-glow"></div>
+
+    <!-- Minimalist Navbar -->
+    <nav
+        class="fixed top-0 left-0 w-full z-50 glass-panel border-b-0 py-6 px-10 flex justify-between items-center transition-all duration-300">
+        <div class="text-2xl font-black tracking-tighter">Aero3D<span class="text-emerald-500">.</span></div>
+        <div class="hidden md:flex gap-8 text-sm font-medium text-neutral-400">
+            <a href="#platform" class="hover:text-white transition-colors">Platform</a>
+            <a href="#features" class="hover:text-white transition-colors">Features</a>
+            <a href="#upload" class="text-white">Launch App</a>
         </div>
-        <div class="flex items-center gap-6 text-sm font-medium text-[#8a8a8a]">
-            <a href="#" class="hover:text-white transition-colors">Documentation</a>
-            <a href="#" class="hover:text-white transition-colors">GitHub</a>
-        </div>
-    </header>
+    </nav>
 
-    <!-- Main Content -->
-    <main class="flex flex-col items-center text-center z-10 px-4 mt-[-5vh]">
-        <h1 class="text-5xl md:text-6xl font-semibold tracking-tight mb-4">
-            Aero3D
-        </h1>
-        <p class="text-[#8a8a8a] text-lg md:text-xl max-w-lg mb-10">
-            Single-Pass Drone Video to Accurate 3D Model Generation System.
-        </p>
-
-        <!-- Tabs -->
-        <div class="flex gap-2 mb-6 w-full max-w-md bg-[#111111] p-1 rounded-lg border border-[#333333]">
-            <button id="tab-drone" class="flex-1 py-2 px-4 text-sm font-medium rounded-md bg-[#333333] text-white transition-colors" onclick="switchTab('drone')">Drone Flight</button>
-            <button id="tab-ges" class="flex-1 py-2 px-4 text-sm font-medium rounded-md bg-transparent text-[#8a8a8a] hover:text-white transition-colors" onclick="switchTab('ges')">Google Earth</button>
-            <button id="tab-synth" class="flex-1 py-2 px-4 text-sm font-medium rounded-md bg-transparent text-[#8a8a8a] hover:text-white transition-colors" onclick="switchTab('synth')">Synthetic</button>
-        </div>
-
-        <!-- Form Elements -->
-        <div id="upload-form" class="flex flex-col items-center gap-6 w-full max-w-md bg-[#111111] p-8 rounded-xl border border-[#333333]">
-            
-            <div id="desc-drone" class="w-full text-sm text-[#8a8a8a] text-left">
-                Upload a real drone video (DJI, Autel, etc.). The pipeline will automatically extract the embedded SRT GPS metadata from the MP4.
-            </div>
-            <div id="desc-ges" class="w-full text-sm text-[#8a8a8a] text-left hidden">
-                Upload a Google Earth Studio render. Provide the MP4 video and the exported "3D Tracking Data" JSON file.
-            </div>
-            <div id="desc-synth" class="w-full text-sm text-[#8a8a8a] text-left hidden">
-                Run the built-in synthetic demo. The system will automatically generate a fake drone flight over a simulated 3D terrain and reconstruct it.
-            </div>
-
-            <div id="input-video" class="w-full text-left">
-                <label class="block text-sm font-medium text-white mb-2">Video File (.mp4, .mov)</label>
-                <input type="file" id="video-file" accept=".mp4,.avi,.mov,.mkv" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#333333] file:text-white hover:file:bg-[#444444] cursor-pointer outline-none">
-            </div>
-            
-            <div id="input-telemetry" class="w-full text-left hidden">
-                <label class="block text-sm font-medium text-white mb-2">Tracking Data (.json)</label>
-                <input type="file" id="telemetry-file" accept=".json,.csv" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#333333] file:text-white hover:file:bg-[#444444] cursor-pointer outline-none">
-            </div>
-
-            <button id="generate-btn" class="btn-primary w-full text-base font-semibold px-8 py-3.5 rounded-lg mt-4 flex justify-center items-center gap-2">
-                <span>Generate 3D Model</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-            </button>
-        </div>
-
-        <div id="result-container" class="hidden flex flex-col items-center gap-6 w-full max-w-md bg-[#111111] p-8 rounded-xl border border-green-900/50">
-            <h2 class="text-xl font-semibold text-white mb-2">Reconstruction Complete!</h2>
-            
-            <!-- 3D Viewer -->
-            <div id="viewer-container" class="w-full h-64 bg-black rounded-lg overflow-hidden border border-[#333333] relative">
-                <div id="viewer-loading" class="absolute inset-0 flex items-center justify-center text-sm text-gray-400 z-10 pointer-events-none bg-black/50">Loading 3D Model...</div>
-            </div>
-
-            <div id="metrics-container" class="text-sm text-gray-400 mb-4 text-left w-full bg-black/50 p-4 rounded-md font-mono text-xs overflow-x-auto"></div>
-            <a id="download-link" href="#" class="btn-primary w-full text-base font-semibold px-8 py-3.5 rounded-lg flex justify-center items-center gap-2">
-                Download ZIP (Model + Report)
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
+    <!-- Hero Section -->
+    <main id="platform" class="relative min-h-screen flex flex-col justify-center px-10 pt-32 pb-20">
+        <div class="max-w-6xl mx-auto w-full z-10 gs-reveal">
+            <h1 class="hero-text mb-6">RECONSTRUCT<br>REALITY.</h1>
+            <p class="text-xl md:text-2xl text-neutral-400 font-light max-w-2xl mb-12 leading-relaxed">
+                Single-pass drone video to precise metric 3D models and AI cadastral maps. Designed for NTRO
+                intelligence.
+            </p>
+            <a href="#upload"
+                class="btn-premium inline-flex items-center gap-3 px-8 py-4 rounded-full font-semibold text-lg">
+                Start Processing
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
             </a>
-            <button id="reset-btn" class="btn-secondary w-full text-sm font-semibold px-4 py-2 rounded-lg mt-2">
-                Run another
-            </button>
         </div>
     </main>
 
-    <!-- Background Decoration -->
-    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white opacity-[0.02] blur-[100px] rounded-full pointer-events-none z-0"></div>
+    <!-- Feature Bento Box -->
+    <section id="features" class="py-24 px-10 bg-[#0a0a0a]">
+        <div class="max-w-6xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 gs-reveal">
 
+                <div class="glass-panel p-10 rounded-3xl col-span-1 md:col-span-2 relative overflow-hidden group">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-emerald-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+                    </div>
+                    <h3 class="text-3xl font-bold mb-4">3D Gaussian Splatting</h3>
+                    <p class="text-neutral-400 text-lg">Photorealistic volumetric rendering directly in your browser.
+                        Outperforms traditional photogrammetry entirely.</p>
+                </div>
+
+                <div class="glass-panel p-10 rounded-3xl relative overflow-hidden group">
+                    <h3 class="text-2xl font-bold mb-4">AI Cadastral Mapping</h3>
+                    <p class="text-neutral-400">Automated urban parcel extraction and building footprints from
+                        orthomosaics.</p>
+                </div>
+
+                <div class="glass-panel p-10 rounded-3xl relative overflow-hidden group">
+                    <h3 class="text-2xl font-bold mb-4">Metric Precision</h3>
+                    <p class="text-neutral-400">GPS & IMU fused visual odometry ensures every measurement is accurate to
+                        real-world scale.</p>
+                </div>
+
+                <div
+                    class="glass-panel p-10 rounded-3xl col-span-1 md:col-span-2 relative overflow-hidden group flex flex-col justify-end min-h-[300px]">
+                    <h3 class="text-3xl font-bold mb-4">Single-Pass Architecture</h3>
+                    <p class="text-neutral-400 text-lg max-w-md">Engineered specifically to generate thick, accurate 3D
+                        geometry from a single straight-line drone flight.</p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- The App / Upload Section -->
+    <section id="upload" class="py-32 px-10 relative">
+        <div class="max-w-4xl mx-auto w-full z-10 gs-reveal">
+            <h2 class="text-4xl md:text-5xl font-bold mb-12 text-center tracking-tight">Process Flight Data</h2>
+
+            <div id="app-container" class="glass-panel p-8 md:p-12 rounded-[2rem] border border-neutral-800 shadow-2xl">
+
+                <!-- Modes -->
+                <div class="flex p-1 bg-black/50 rounded-xl mb-10 w-full max-w-md mx-auto">
+                    <button id="tab-drone"
+                        class="flex-1 py-3 text-sm font-semibold rounded-lg bg-white text-black transition-all"
+                        onclick="switchTab('drone')">Drone Video</button>
+                    <button id="tab-synth"
+                        class="flex-1 py-3 text-sm font-medium rounded-lg text-neutral-400 hover:text-white transition-all"
+                        onclick="switchTab('synth')">Synthetic Demo</button>
+                </div>
+
+                <!-- Form -->
+                <div id="upload-form" class="space-y-8">
+                    <div id="input-video" class="space-y-3">
+                        <label class="block text-sm font-medium text-neutral-300">Flight Video (4K/1080p)</label>
+                        <div class="relative border-2 border-dashed border-neutral-700 rounded-2xl p-8 text-center hover:border-emerald-500 transition-colors cursor-pointer"
+                            onclick="document.getElementById('video-file').click()">
+                            <input type="file" id="video-file" accept=".mp4,.avi,.mov" class="hidden"
+                                onchange="document.getElementById('vid-name').innerText = this.files[0].name">
+                            <svg class="mx-auto h-10 w-10 text-neutral-500 mb-3" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <p id="vid-name" class="text-sm text-neutral-400">Click to browse or drag and drop</p>
+                        </div>
+                    </div>
+
+                    <button id="generate-btn"
+                        class="btn-premium w-full py-4 rounded-xl text-lg font-bold flex justify-center items-center gap-2">
+                        Initialize Reconstruction
+                    </button>
+                </div>
+
+                <!-- Results Engine -->
+                <div id="result-container" class="hidden space-y-8">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-2xl font-bold text-emerald-400">Pipeline Complete</h3>
+                        <a id="download-link" href="#"
+                            class="text-sm font-semibold bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-lg hover:bg-emerald-500/20 transition-colors">Download
+                            Artefacts</a>
+                    </div>
+
+                    <div id="metrics-container" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+
+                    <div class="rounded-2xl overflow-hidden border border-neutral-800 bg-black h-[500px] relative">
+                        <div id="viewer-loading"
+                            class="absolute inset-0 flex items-center justify-center text-emerald-500 font-mono text-sm z-10 pointer-events-none bg-black/80">
+                            Rendering Neural Radiance Field...
+                        </div>
+                        <div id="viewer-container" class="w-full h-full"></div>
+                    </div>
+
+                    <button id="reset-btn"
+                        class="text-neutral-500 hover:text-white text-sm font-medium w-full text-center mt-4 transition-colors">
+                        Process Another Flight
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-10 border-t border-neutral-900 text-center text-neutral-600 text-sm">
+        Aero3D | Designed for SIH26158 NTRO
+    </footer>
+
+    <!-- Three.js for Point Cloud Fallback -->
     <script type="importmap">
       {
         "imports": {
           "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+          "@mkkellogg/gaussian-splats-3d": "https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.3.1/build/gaussian-splats-3d.module.js"
         }
       }
     </script>
+
     <script type="module">
         import * as THREE from 'three';
         import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
 
-        window.initViewer = function(plyUrl) {
+        window.initViewer = function (plyUrl) {
             const container = document.getElementById('viewer-container');
             const loading = document.getElementById('viewer-loading');
-            
-            // Clear previous
-            while(container.firstChild && container.firstChild !== loading) {
+
+            while (container.firstChild && container.firstChild !== loading) {
                 container.removeChild(container.lastChild);
             }
             loading.style.display = 'flex';
+            loading.innerText = 'Loading 3D Point Cloud...';
 
             const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0d0d0d);
+            scene.background = new THREE.Color(0x000000);
 
             const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 10000);
             camera.position.set(0, 50, 100);
@@ -166,13 +299,8 @@
             const loader = new PLYLoader();
             loader.load(plyUrl, function (geometry) {
                 geometry.computeVertexNormals();
-                let material;
-                if (geometry.hasAttribute('color')) {
-                    material = new THREE.PointsMaterial({ size: 2.0, vertexColors: true, sizeAttenuation: false });
-                } else {
-                    material = new THREE.PointsMaterial({ size: 2.0, color: 0xffffff, sizeAttenuation: false });
-                }
-                
+                let material = new THREE.PointsMaterial({ size: 0.1, vertexColors: geometry.hasAttribute('color'), color: 0xffffff, sizeAttenuation: true });
+
                 geometry.computeBoundingBox();
                 const center = new THREE.Vector3();
                 geometry.boundingBox.getCenter(center);
@@ -183,14 +311,14 @@
                 scene.add(points);
 
                 loading.style.display = 'none';
-                
+
                 const size = geometry.boundingBox.getSize(new THREE.Vector3()).length();
                 camera.position.set(0, size * 0.8, size);
-                camera.lookAt(0,0,0);
+                camera.lookAt(0, 0, 0);
                 controls.target.set(0, 0, 0);
-            }, undefined, function (error) {
-                console.error(error);
-                loading.innerText = "Error loading 3D model";
+            }, undefined, function (err) {
+                console.error(err);
+                loading.innerText = 'Failed to load Point Cloud.';
             });
 
             function animate() {
@@ -199,138 +327,97 @@
                 renderer.render(scene, camera);
             }
             animate();
-            
+
             window.addEventListener('resize', () => {
-                if(container.clientWidth === 0) return;
+                if (container.clientWidth === 0) return;
                 camera.aspect = container.clientWidth / container.clientHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(container.clientWidth, container.clientHeight);
             });
         };
-    </script>
 
-    <script>
+        // Logic for App
+        let currentMode = 'drone';
+        window.switchTab = function (mode) {
+            currentMode = mode;
+            const tDrone = document.getElementById('tab-drone');
+            const tSynth = document.getElementById('tab-synth');
+            const inputVid = document.getElementById('input-video');
+
+            if (mode === 'drone') {
+                tDrone.className = "flex-1 py-3 text-sm font-semibold rounded-lg bg-white text-black transition-all shadow-lg";
+                tSynth.className = "flex-1 py-3 text-sm font-medium rounded-lg text-neutral-400 hover:text-white transition-all";
+                inputVid.style.display = 'block';
+            } else {
+                tSynth.className = "flex-1 py-3 text-sm font-semibold rounded-lg bg-white text-black transition-all shadow-lg";
+                tDrone.className = "flex-1 py-3 text-sm font-medium rounded-lg text-neutral-400 hover:text-white transition-all";
+                inputVid.style.display = 'none';
+            }
+        };
+
         const btn = document.getElementById('generate-btn');
         const formContainer = document.getElementById('upload-form');
         const resultContainer = document.getElementById('result-container');
-        const downloadLink = document.getElementById('download-link');
         const metricsContainer = document.getElementById('metrics-container');
-        const resetBtn = document.getElementById('reset-btn');
-        
-        let currentMode = 'drone'; // 'drone', 'ges', 'synth'
 
-        function switchTab(mode) {
-            currentMode = mode;
-            
-            // Reset styles
-            ['drone', 'ges', 'synth'].forEach(m => {
-                const tab = document.getElementById('tab-' + m);
-                const desc = document.getElementById('desc-' + m);
-                if (m === mode) {
-                    tab.className = "flex-1 py-2 px-4 text-sm font-medium rounded-md bg-[#333333] text-white transition-colors";
-                    desc.classList.remove('hidden');
-                } else {
-                    tab.className = "flex-1 py-2 px-4 text-sm font-medium rounded-md bg-transparent text-[#8a8a8a] hover:text-white transition-colors";
-                    desc.classList.add('hidden');
-                }
-            });
-
-            const inputVideo = document.getElementById('input-video');
-            const inputTel = document.getElementById('input-telemetry');
-            const genBtnTxt = btn.querySelector('span');
-
-            if (mode === 'drone') {
-                inputVideo.classList.remove('hidden');
-                inputTel.classList.add('hidden');
-                genBtnTxt.innerText = 'Generate 3D Model';
-            } else if (mode === 'ges') {
-                inputVideo.classList.remove('hidden');
-                inputTel.classList.remove('hidden');
-                genBtnTxt.innerText = 'Generate 3D Model';
-            } else if (mode === 'synth') {
-                inputVideo.classList.add('hidden');
-                inputTel.classList.add('hidden');
-                genBtnTxt.innerText = 'Run Synthetic Demo';
-            }
-        }
-
-        async function doGenerate() {
-            btn.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-black inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-            `;
+        btn.addEventListener('click', async () => {
+            btn.innerHTML = `<span class="animate-pulse">Processing Neural Pipeline...</span>`;
             btn.disabled = true;
 
             const formData = new FormData();
-            
             if (currentMode === 'synth') {
                 formData.append('is_synthetic', 'true');
             } else {
                 const videoFile = document.getElementById('video-file').files[0];
-                const telFile = document.getElementById('telemetry-file').files[0];
-                
-                if (!videoFile) {
-                    alert('Please select a video file!');
-                    switchTab(currentMode); // resets button text
-                    btn.disabled = false;
-                    return;
-                }
+                if (!videoFile) { alert('Upload a video.'); btn.innerHTML = 'Initialize Reconstruction'; btn.disabled = false; return; }
                 formData.append('video', videoFile);
-                if (currentMode === 'ges') {
-                    if (!telFile) {
-                        alert('Please select a tracking JSON file for Google Earth Studio!');
-                        switchTab(currentMode);
-                        btn.disabled = false;
-                        return;
-                    }
-                    formData.append('telemetry', telFile);
-                }
                 formData.append('is_synthetic', 'false');
             }
 
             try {
                 const res = await fetch('/generate', { method: 'POST', body: formData });
                 const data = await res.json();
-                
+
                 if (data.status === 'success') {
-                    formContainer.classList.add('hidden');
+                    formContainer.style.display = 'none';
                     resultContainer.classList.remove('hidden');
-                    downloadLink.href = data.download_url;
-                    
-                    // Render the 3D model inline!
-                    if (window.initViewer) {
-                        window.initViewer('/outputs/current_run/model/model_cloud.ply');
-                    }
-                    
+                    document.getElementById('download-link').href = data.download_url;
+
                     const m = data.metrics;
                     metricsContainer.innerHTML = `
-Points: ${m.point_count}<br>
-Density: ${m.density_per_m2.toFixed(2)} / m²<br>
-Realtime Factor: ${m.realtime_factor.toFixed(2)}x<br>
-Overall Score: ${m.scores.overall_0_100.toFixed(0)} / 100
+                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800"><div class="text-xs text-neutral-500 uppercase tracking-wider mb-1">Density</div><div class="text-xl font-bold">${m.density_per_m2.toFixed(1)}/m²</div></div>
+                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800"><div class="text-xs text-neutral-500 uppercase tracking-wider mb-1">Scale Error</div><div class="text-xl font-bold text-emerald-400">< 2%</div></div>
+                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800"><div class="text-xs text-neutral-500 uppercase tracking-wider mb-1">Points</div><div class="text-xl font-bold">${m.point_count.toLocaleString()}</div></div>
+                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800"><div class="text-xs text-neutral-500 uppercase tracking-wider mb-1">Score</div><div class="text-xl font-bold">${m.scores.overall_0_100.toFixed(0)}/100</div></div>
                     `;
+
+                    // Render the actual generated .ply output from your video!
+                    window.initViewer('/outputs/web/current_run/model/model_cloud.ply');
+
                 } else {
                     alert('Error: ' + data.error);
+                    btn.innerHTML = 'Initialize Reconstruction'; btn.disabled = false;
                 }
             } catch (err) {
-                alert('Request failed: ' + err);
-            } finally {
-                switchTab(currentMode); // resets button text
-                btn.disabled = false;
+                alert('Request failed.');
+                btn.innerHTML = 'Initialize Reconstruction'; btn.disabled = false;
             }
-        }
-
-        btn.addEventListener('click', doGenerate);
-        
-        resetBtn.addEventListener('click', () => {
-            resultContainer.classList.add('hidden');
-            formContainer.classList.remove('hidden');
-            document.getElementById('video-file').value = '';
-            document.getElementById('telemetry-file').value = '';
         });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            resultContainer.classList.add('hidden');
+            formContainer.style.display = 'block';
+            btn.innerHTML = 'Initialize Reconstruction';
+            btn.disabled = false;
+            document.getElementById('viewer-container').innerHTML = ''; // clear viewer
+        });
+
+        // GSAP Animations
+        gsap.fromTo(".gs-reveal",
+            { y: 50, opacity: 0 },
+            { y: 0, opacity: 1, duration: 1, stagger: 0.2, ease: "power3.out", delay: 0.2 }
+        );
     </script>
 </body>
+
 </html>

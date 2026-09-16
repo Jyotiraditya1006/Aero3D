@@ -39,17 +39,23 @@ def run_pipeline(
     tick("GPS-scaled visual odometry", 0.2)
     vo_stats = refine_poses_visual(frames, camera)
 
-    tick("Multi-view stereo fusion", 0.35)
+    tick("AI Monocular Depth Extraction (Depth Anything V2)", 0.35)
     skip = int(cfg["stereo"]["pair_skip"])
     flow_thr = float(cfg["cloud"]["dynamic_flow_threshold"])
     chunks_p, chunks_c, chunks_k = [], [], []
     used_pairs = 0
     skipped_dynamic = 0
     n_pairs = max(len(frames) - skip, 1)
+    
+    # Initialize Neural Depth Pipeline
+    from aero3d.depth import init_ai_depth_pipeline, ai_depth_cloud
+    depth_pipe = init_ai_depth_pipeline()
+    
     for i in range(0, len(frames) - skip):
         fa, fb = frames[i], frames[i + skip]
         flow = optical_flow_dynamic_mask(fa, fb)
-        pts, cols, conf = stereo_cloud_from_pair(fa, fb, camera, cfg)
+        # Use AI Depth instead of traditional stereo!
+        pts, cols, conf = ai_depth_cloud(fa, camera, depth_pipe)
         if pts.shape[0] == 0:
             continue
         if flow > flow_thr:
@@ -60,7 +66,7 @@ def run_pipeline(
         chunks_k.append(conf)
         used_pairs += 1
         if progress and i % 4 == 0:
-            progress(f"Stereo pair {i + 1}/{n_pairs}", 0.35 + 0.4 * i / n_pairs)
+            progress(f"AI Depth Frame {i + 1}/{n_pairs}", 0.35 + 0.4 * i / n_pairs)
 
     if not chunks_p:
         print("Warning: Stereo reconstruction produced no points. Generating dummy point to prevent crash.")

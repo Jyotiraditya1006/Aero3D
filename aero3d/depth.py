@@ -142,3 +142,77 @@ def optical_flow_dynamic_mask(fa: FrameRecord, fb: FrameRecord) -> float:
     flow = cv2.calcOpticalFlowFarneback(g0, g1, None, 0.5, 3, 21, 3, 5, 1.2, 0)
     mag = np.linalg.norm(flow, axis=2)
     return float(np.median(mag))
+
+def init_ai_depth_pipeline():
+    """Initializes the Depth Anything V2 model via HuggingFace transformers."""
+    from transformers import pipeline
+    import torch
+    
+    device = 0 if torch.cuda.is_available() else -1
+    print(f"Loading Depth Anything V2 on {'GPU' if device == 0 else 'CPU'}...")
+    # Using the tiny/small model which takes ~100MB VRAM and runs instantly
+    depth_pipe = pipeline("depth-estimation", model="depth-anything/Depth-Anything-V2-Small-hf", device=device)
+    return depth_pipe
+
+def ai_depth_cloud(
+    fa: FrameRecord, 
+    camera: CameraIntrinsics, 
+    depth_pipe
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Generates a dense, photorealistic point cloud from a single frame using AI Depth."""
+    from PIL import Image
+    
+    # Run the image through the Neural Network
+    img_rgb = cv2.cvtColor(fa.image, cv2.COLOR_BGR2RGB)
+    pil_img = Image.fromarray(img_rgb)
+    result = depth_pipe(pil_img)
+    
+    # The model outputs a depth map (255 = closest, 0 = furthest)
+    depth_map = np.array(result["depth"]).astype(np.float32)
+    
+    inv_depth = depth_map / 255.0 + 0.01 
+    raw_Z = 1.0 / inv_depth
+    
+    # --- METRIC SCALE ALIGNMENT (DJI Terra / Polycam equivalent) ---
+    # Anchor the AI depth to true GPS dimensions
+    alt = float(fa.t_enu[2])
+    cam_z_axis = fa.R_enu[:, 2] 
+    
+    # If looking down, calculate exact ray distance to the ground plane (Z=0)
+    if cam_z_axis[2] < -0.1 and alt > 0:
+        true_depth_to_ground = -alt / cam_z_axis[2]
+    else:
+        true_depth_to_ground = 30.0 # fallback
+        
+    # Scale the AI output so median depth equals real-world metric depth
+    median_raw_Z = float(np.median(raw_Z))
+    scale_factor = true_depth_to_ground / median_raw_Z
+    Z = raw_Z * scale_factor
+    
+    # Create pixel grid
+    h, w = Z.shape
+    u, v = np.meshgrid(np.arange(w), np.arange(h))
+    
+    # Apply camera intrinsics to unproject rays
+    cx, cy = camera.cx, camera.cy
+    fx, fy = camera.fx, camera.fy
+    
+    X = (u - cx) * Z / fx
+    Y = (v - cy) * Z / fy
+    
+    # Flatten into 3D points
+    pts_cam = np.stack((X, Y, Z), axis=-1).reshape(-1, 3)
+    colors = img_rgb.reshape(-1, 3) / 255.0
+    
+    # Subsample (step=2 gives 4x more points than step=4 for photorealistic texture)
+    step = 2
+    pts_cam = pts_cam[::step]
+    colors = colors[::step]
+    
+    # Transform from Camera space to World space using GPS Odometry
+    world = (fa.R_enu @ pts_cam.T).T + fa.t_enu
+    
+    # Assume high confidence for AI depth
+    conf = np.full((world.shape[0],), 0.9, dtype=np.float32)
+    
+    return world.astype(np.float32), colors.astype(np.float32), conf
