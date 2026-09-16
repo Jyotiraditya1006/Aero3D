@@ -15,8 +15,11 @@ def refine_poses_visual(
         return {"vo_inliers_mean": 0.0, "aligned": False}
 
     K = camera.K
-    rel_R = [np.eye(3)]
-    rel_t = [np.zeros(3)]
+    # We will track the Camera Center in World coordinates (C_w)
+    # and the Camera Rotation (R_cw = R_{world->cam})
+    C_w = [np.zeros(3)]
+    R_cw = [np.eye(3)]
+    
     inliers = []
     orb = cv2.ORB_create(nfeatures=2500)
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
@@ -27,18 +30,15 @@ def refine_poses_visual(
     for i in range(1, len(frames)):
         gray = cv2.cvtColor(frames[i].image, cv2.COLOR_BGR2GRAY)
         kp, des = orb.detectAndCompute(gray, None)
+        
         R_inc = np.eye(3)
         t_inc = np.array([0.0, 0.0, 1.0])
         n_inl = 0
+        
         if prev_des is not None and des is not None and len(prev_kp) >= 8 and len(kp) >= 8:
             matches = bf.knnMatch(prev_des, des, k=2)
-            good = []
-            for pair in matches:
-                if len(pair) < 2:
-                    continue
-                m, n = pair
-                if m.distance < 0.75 * n.distance:
-                    good.append(m)
+            good = [m for pair in matches if len(pair) == 2 for m, n in [pair] if m.distance < 0.75 * n.distance]
+            
             if len(good) >= 12:
                 pts1 = np.float32([prev_kp[m.queryIdx].pt for m in good])
                 pts2 = np.float32([kp[m.trainIdx].pt for m in good])
@@ -47,12 +47,20 @@ def refine_poses_visual(
                     _, R_inc, t_inc, mask_pose = cv2.recoverPose(E, pts1, pts2, K, mask=mask)
                     n_inl = int(mask_pose.sum()) if mask_pose is not None else 0
                     t_inc = t_inc.reshape(3)
+                    
         inliers.append(n_inl)
-        rel_R.append(rel_R[-1] @ R_inc)
-        rel_t.append(rel_R[-1] @ t_inc + rel_t[-1])
+        
+        # R_inc is R_{prev->curr}. t_inc is t_{prev->curr}
+        # C_curr = C_prev - R_prev.T @ (R_inc.T @ t_inc)
+        R_curr = R_inc @ R_cw[-1]
+        C_curr = C_w[-1] - R_curr.T @ t_inc
+        
+        R_cw.append(R_curr)
+        C_w.append(C_curr)
+        
         prev_kp, prev_des = kp, des
 
-    vo = np.stack(rel_t)
+    vo = np.stack(C_w)
     gps = np.stack([f.t_enu for f in frames])
     vo_len = np.linalg.norm(vo[-1] - vo[0])
     gps_len = np.linalg.norm(gps[-1] - gps[0])
@@ -61,21 +69,23 @@ def refine_poses_visual(
         return {"vo_inliers_mean": float(np.mean(inliers) if inliers else 0), "aligned": False}
 
     if gps_len < 1e-6:
-        # Fallback: Create a robust, fake horizontal flight path.
-        # Pure VO often fails on random videos (yielding pure Z translation), 
-        # which breaks stereo triangulation (no horizontal baseline).
-        speed = 10.0  # m/s along the X axis
-        t_start = frames[0].t if frames else 0.0
+        # Fallback: We have no GPS! Use the true visual tracking (ORB VO) to assemble the video.
+        time_span = frames[-1].t - frames[0].t if frames else 1.0
+        vo_speed = vo_len / max(time_span, 1.0)
+        # Scale VO up to a reasonable drone flight speed (e.g., 5m/s)
+        scale = 5.0 / max(vo_speed, 1e-3)
+        vo_s = vo * scale
         
         for i, f in enumerate(frames):
-            # Move along X, keep Y=0, altitude=50
-            f.t_enu = np.array([(f.t - t_start) * speed, 0.0, 50.0])
+            f.t_enu = vo_s[i] + np.array([0.0, 0.0, 50.0])
+            f.R_enu = R_cw[i]
                 
         return {
             "vo_inliers_mean": float(np.mean(inliers) if inliers else 0),
-            "vo_scale": 1.0,
-            "gps_path_m": float(speed * (frames[-1].t - t_start) if frames else 0),
-            "aligned": False,
+            "vo_scale": float(scale),
+            "gps_path_m": float(5.0 * time_span),
+            "aligned": True,
+            "has_gps": False,
         }
 
     scale = gps_len / vo_len
@@ -84,17 +94,20 @@ def refine_poses_visual(
     aligned = (R_align @ vo_s.T).T + t_align
 
     # Blend GPS translation (metric / georef anchor) with VO-smoothed path.
-    # Keep IMU/GPS attitudes; VO rotation is used only to regularize position.
     alpha = 0.35
     blended = alpha * aligned + (1.0 - alpha) * gps
     for i, f in enumerate(frames):
         f.t_enu = blended[i]
+        # Align the local VO camera rotation to the global GPS ENU coordinate system!
+        # R_cw is World->Cam. R_align maps VO-World to ENU-World.
+        f.R_enu = R_cw[i] @ R_align.T
 
     return {
         "vo_inliers_mean": float(np.mean(inliers) if inliers else 0),
         "vo_scale": float(scale),
         "gps_path_m": float(gps_len),
         "aligned": True,
+        "has_gps": True,
     }
 
 

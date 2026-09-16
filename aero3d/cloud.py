@@ -110,3 +110,32 @@ def raster_dsm(points: np.ndarray, resolution: float = 0.5) -> tuple[np.ndarray,
         if np.isnan(dsm[y, x]) or z > dsm[y, x]:
             dsm[y, x] = z
     return dsm, (float(min_e), float(min_n)), resolution
+
+def raster_ortho(points: np.ndarray, colors: np.ndarray, resolution: float = 0.5):
+    """Generates a 2D Orthomosaic RGB image from the point cloud."""
+    from PIL import Image
+    if points.shape[0] == 0:
+        return Image.new("RGB", (100, 100), (0, 0, 0))
+        
+    min_e, min_n = points[:, 0].min(), points[:, 1].min()
+    max_e, max_n = points[:, 0].max(), points[:, 1].max()
+    w = max(int(np.ceil((max_e - min_e) / resolution)) + 1, 2)
+    h = max(int(np.ceil((max_n - min_n) / resolution)) + 1, 2)
+    
+    # Track Max Z to determine which pixel is visible from top-down
+    z_buffer = np.full((h, w), -np.inf, dtype=np.float32)
+    img_arr = np.zeros((h, w, 3), dtype=np.uint8)
+    
+    ix = np.clip(((points[:, 0] - min_e) / resolution).astype(int), 0, w - 1)
+    iy = np.clip(((points[:, 1] - min_n) / resolution).astype(int), 0, h - 1)
+    
+    c_bytes = (colors * 255).astype(np.uint8)
+    
+    for x, y, z, c in zip(ix, iy, points[:, 2], c_bytes):
+        if z > z_buffer[y, x]:
+            z_buffer[y, x] = z
+            img_arr[y, x] = c
+            
+    # Flip Y because numpy arrays have Y=0 at the top, but ENU has Y (North) up
+    img_arr = np.flipud(img_arr)
+    return Image.fromarray(img_arr)

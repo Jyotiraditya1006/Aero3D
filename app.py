@@ -97,7 +97,7 @@ def main() -> None:
         with c1:
             video_file = st.file_uploader("Drone video (1080p/4K)", type=["mp4", "avi", "mov", "mkv"])
         with c2:
-            tel_file = st.file_uploader("Telemetry JSON or CSV (GPS + optional IMU/intrinsics)", type=["json", "csv"])
+            tel_file = st.file_uploader("Telemetry (SRT, JSON, CSV). Optional if video has embedded SRT.", type=["json", "csv", "srt"])
 
     if run:
         work = ROOT / "outputs" / "ui"
@@ -112,13 +112,18 @@ def main() -> None:
                 info = generate_synthetic_mission(work / "mission")
                 video_path, tel_path = info["video"], info["telemetry"]
             else:
-                if not video_file or not tel_file:
-                    st.error("Upload both a video and telemetry file.")
+                if not video_file:
+                    st.error("Upload a drone video.")
                     st.stop()
                 video_path = work / video_file.name
-                tel_path = work / tel_file.name
                 video_path.write_bytes(video_file.getbuffer())
-                tel_path.write_bytes(tel_file.getbuffer())
+                
+                if tel_file:
+                    tel_path = work / tel_file.name
+                    tel_path.write_bytes(tel_file.getbuffer())
+                else:
+                    # Pass the video path as the telemetry path, ingest.py will extract the embedded SRT
+                    tel_path = video_path
 
             result = run_pipeline(video_path, tel_path, work / "model", progress=progress)
             st.session_state["result"] = result

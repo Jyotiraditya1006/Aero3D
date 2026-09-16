@@ -16,31 +16,25 @@ def load_telemetry(path: str | Path) -> Telemetry:
         return _from_json(p)
     if p.suffix.lower() in {".csv", ".txt"}:
         return _from_csv(p)
+    if p.suffix.lower() == ".srt":
+        return _from_srt(p)
     if p.suffix.lower() in {".mp4", ".mov", ".avi"}:
         return _from_video_srt(p)
     raise ValueError(f"Unsupported telemetry format: {p.suffix}")
 
-def _from_video_srt(video_path: Path) -> Telemetry:
-    import subprocess
-    import imageio_ffmpeg
-    import re
-    
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-    out_srt = video_path.with_suffix(".srt")
-    subprocess.run([ffmpeg_exe, "-y", "-i", str(video_path), "-map", "0:s:0", str(out_srt)], capture_output=True)
-    
-    def _dummy_telemetry():
-        # Creates a basic 1-minute dummy flight starting at 0,0,0
-        return Telemetry(samples=[
-            GeoSample(t=0.0, lat=0.0, lon=0.0, alt=50.0, yaw=0.0, pitch=-90.0, roll=0.0),
-            GeoSample(t=60.0, lat=0.0000001, lon=0.0, alt=50.0, yaw=0.0, pitch=-90.0, roll=0.0)
-        ])
+def _dummy_telemetry():
+    # Creates a basic 1-minute dummy flight starting at 0,0,0
+    return Telemetry(samples=[
+        GeoSample(t=0.0, lat=0.0, lon=0.0, alt=50.0, yaw=0.0, pitch=-90.0, roll=0.0),
+        GeoSample(t=60.0, lat=0.0, lon=0.0, alt=50.0, yaw=0.0, pitch=-90.0, roll=0.0)
+    ])
 
-    if not out_srt.exists() or out_srt.stat().st_size == 0:
-        print("Warning: No embedded telemetry found in video. Falling back to pure Visual Odometry.")
+def _from_srt(srt_path: Path) -> Telemetry:
+    import re
+    if not srt_path.exists() or srt_path.stat().st_size == 0:
         return _dummy_telemetry()
-    
-    content = out_srt.read_text(encoding="utf-8", errors="replace")
+        
+    content = srt_path.read_text(encoding="utf-8", errors="replace")
     samples = []
     
     # Parse SRT blocks
@@ -58,28 +52,59 @@ def _from_video_srt(video_path: Path) -> Telemetry:
         
         text = " ".join(lines[2:])
         
-        lat_m = re.search(r"\[latitude:\s*([\-\.\d]+)\]", text)
-        lon_m = re.search(r"\[longitude:\s*([\-\.\d]+)\]", text)
-        alt_m = re.search(r"\[rel_alt:\s*([\-\.\d]+)", text) or re.search(r"\[altitude:\s*([\-\.\d]+)", text)
-        if not (lat_m and lon_m):
+        lat = lon = alt = None
+        
+        # Format 1: [latitude: 1.23] [longitude: 4.56]
+        lat_m = re.search(r"\[latitude:\s*([\-\.\d]+)\]", text, re.IGNORECASE)
+        lon_m = re.search(r"\[longitude:\s*([\-\.\d]+)\]", text, re.IGNORECASE)
+        alt_m = re.search(r"\[(?:rel_)?altitude:\s*([\-\.\d]+)\]", text, re.IGNORECASE)
+        
+        # Format 2: GPS(-4.0071,57.9811,18) BAROMETER:57.2
+        gps_m = re.search(r"GPS\(([\-\.\d]+),\s*([\-\.\d]+)[,\)]", text, re.IGNORECASE)
+        baro_m = re.search(r"BAROMETER:\s*([\-\.\d]+)", text, re.IGNORECASE)
+        
+        if lat_m and lon_m:
+            lat = float(lat_m.group(1))
+            lon = float(lon_m.group(1))
+            alt = float(alt_m.group(1)) if alt_m else 50.0
+        elif gps_m:
+            lon = float(gps_m.group(1))
+            lat = float(gps_m.group(2))
+            alt = float(baro_m.group(1)) if baro_m else 50.0
+            
+        if lat is None or lon is None:
             continue
             
         samples.append(
             GeoSample(
                 t=t,
-                lat=float(lat_m.group(1)),
-                lon=float(lon_m.group(1)),
-                alt=float(alt_m.group(1)) if alt_m else 50.0,
+                lat=lat,
+                lon=lon,
+                alt=alt,
                 yaw=None, pitch=None, roll=None
             )
         )
         
     if not samples:
-        print("Warning: Could not parse GPS from embedded subtitles. Falling back to pure Visual Odometry.")
+        print("Warning: Could not parse GPS from standalone SRT. Falling back to pure Visual Odometry.")
         return _dummy_telemetry()
         
     samples.sort(key=lambda s: s.t)
     return Telemetry(samples=samples)
+
+def _from_video_srt(video_path: Path) -> Telemetry:
+    import subprocess
+    import imageio_ffmpeg
+    
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    out_srt = video_path.with_suffix(".srt")
+    subprocess.run([ffmpeg_exe, "-y", "-i", str(video_path), "-map", "0:s:0", str(out_srt)], capture_output=True)
+    
+    if not out_srt.exists() or out_srt.stat().st_size == 0:
+        print("Warning: No embedded telemetry found in video. Falling back to pure Visual Odometry.")
+        return _dummy_telemetry()
+    
+    return _from_srt(out_srt)
 
 
 def _camera_from_dict(d: dict | None) -> CameraIntrinsics | None:

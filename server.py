@@ -27,7 +27,8 @@ def read_index():
 def generate_model(
     video: Optional[UploadFile] = File(None),
     telemetry: Optional[UploadFile] = File(None),
-    is_synthetic: bool = Form(False)
+    is_synthetic: bool = Form(False),
+    target_object: Optional[str] = Form(None)
 ):
     run_dir = OUTPUTS_DIR / "current_run"
     
@@ -56,9 +57,19 @@ def generate_model(
                 tel_path = vid_path  # Pipeline will extract SRT from video
         
         out_model_dir = run_dir / "model"
+        out_model_dir.mkdir(parents=True, exist_ok=True)
+        log_file = run_dir / "pipeline.log"
+        
+        def log_progress(msg, frac):
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            log_str = f"> {timestamp} [SYS] {msg}\n"
+            print(log_str, end="")
+            with open(log_file, "a") as f:
+                f.write(log_str)
         
         # Run pipeline
-        result = run_pipeline(vid_path, tel_path, out_model_dir)
+        result = run_pipeline(vid_path, tel_path, out_model_dir, target_object=target_object, progress=log_progress)
         
         # Zip the results
         zip_path = run_dir / "aero3d_model.zip"
@@ -69,8 +80,17 @@ def generate_model(
                 zf.write(out_model_dir / "model_mesh.ply", "model_mesh.ply")
             if (out_model_dir / "report.json").exists():
                 zf.write(out_model_dir / "report.json", "report.json")
+            if (out_model_dir / "ortho.png").exists():
+                zf.write(out_model_dir / "ortho.png", "ortho.png")
                 
-        return {"status": "success", "download_url": "/download/aero3d_model.zip", "metrics": result.metrics}
+        ortho_url = "/outputs/web/current_run/model/ortho.png" if (out_model_dir / "ortho.png").exists() else None
+        
+        return {
+            "status": "success", 
+            "download_url": "/download/aero3d_model.zip", 
+            "metrics": result.metrics,
+            "ortho_url": ortho_url
+        }
     
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -81,6 +101,15 @@ def download_file(filename: str):
     if file_path.exists():
         return FileResponse(file_path, filename=filename)
     return JSONResponse(status_code=404, content={"error": "File not found"})
+
+@app.get("/logs")
+def get_logs():
+    log_path = OUTPUTS_DIR / "current_run" / "pipeline.log"
+    if log_path.exists():
+        with open(log_path, "r") as f:
+            lines = f.readlines()
+            return {"logs": lines[-15:]}
+    return {"logs": []}
 
 if __name__ == "__main__":
     import uvicorn

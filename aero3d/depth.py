@@ -7,10 +7,7 @@ from aero3d.types import CameraIntrinsics, FrameRecord
 
 
 def stereo_cloud_from_pair(
-    fa: FrameRecord,
-    fb: FrameRecord,
-    camera: CameraIntrinsics,
-    cfg: dict,
+    fa: FrameRecord, fb: FrameRecord, camera: CameraIntrinsics, cfg: dict, ai_models=None, target_object=None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Dense cloud from optical-flow correspondences + known metric poses."""
     baseline = float(np.linalg.norm(fa.t_enu - fb.t_enu))
@@ -18,7 +15,7 @@ def stereo_cloud_from_pair(
         return _empty()
 
     pts, cols, conf = _flow_triangulate(fa, fb, camera, cfg)
-    extra, ecol, econf = _sgbm_cloud(fa, fb, camera, cfg)
+    extra, ecol, econf = _sgbm_cloud(fa, fb, camera, cfg, ai_models=ai_models, target_object=target_object)
     if extra.shape[0]:
         pts = np.concatenate([pts, extra], axis=0) if pts.shape[0] else extra
         cols = np.concatenate([cols, ecol], axis=0) if cols.shape[0] else ecol
@@ -75,7 +72,7 @@ def _flow_triangulate(fa, fb, camera, cfg) -> tuple[np.ndarray, np.ndarray, np.n
     return pts.astype(np.float32), colors.astype(np.float32), conf
 
 
-def _sgbm_cloud(fa, fb, camera, cfg) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _sgbm_cloud(fa, fb, camera, cfg, ai_models=None, target_object=None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     K = camera.K.astype(np.float64)
     dist = camera.dist.astype(np.float64)
     size = (camera.width, camera.height)
@@ -121,7 +118,36 @@ def _sgbm_cloud(fa, fb, camera, cfg) -> tuple[np.ndarray, np.ndarray, np.ndarray
     ys, xs = np.where(valid)
     if ys.size == 0:
         return _empty()
-    step = max(1, ys.size // 20000)
+        
+    # AI Target Isolation (CLIPSeg)
+    if ai_models is not None and target_object is not None:
+        from PIL import Image
+        import torch
+        import torch.nn.functional as F
+        
+        img_rgb = cv2.cvtColor(fa.image, cv2.COLOR_BGR2RGB)
+        pil_img = Image.fromarray(img_rgb)
+        proc = ai_models["clipseg_proc"]
+        model = ai_models["clipseg_model"]
+        device_str = "cuda" if ai_models["device"] == 0 else "cpu"
+        
+        inputs = proc(text=[target_object], images=[pil_img], padding="max_length", return_tensors="pt").to(device_str)
+        with torch.no_grad():
+            outputs = model(**inputs)
+            preds = outputs.logits.unsqueeze(1)
+            
+        h, w = fa.image.shape[:2]
+        mask_tensor = F.interpolate(preds, size=(h, w), mode="bilinear", align_corners=False)
+        mask = torch.sigmoid(mask_tensor[0, 0]).cpu().numpy()
+        
+        # Filter valid ys, xs against the AI mask
+        ai_mask = mask[ys, xs] > 0.4
+        ys, xs = ys[ai_mask], xs[ai_mask]
+        
+    if ys.size == 0:
+        return _empty()
+    # High density sampling! (step=2 gives ~25% of all pixels, millions of points!)
+    step = 2
     ys, xs = ys[::step], xs[::step]
     cam_pts = pts_cam[ys, xs]
     colors = img_l[ys, xs][:, ::-1] / 255.0
@@ -145,48 +171,61 @@ def optical_flow_dynamic_mask(fa: FrameRecord, fb: FrameRecord) -> float:
 
 def init_ai_depth_pipeline():
     """Initializes the Depth Anything V2 model via HuggingFace transformers."""
-    from transformers import pipeline
+    from transformers import pipeline, CLIPSegProcessor, CLIPSegForImageSegmentation
     import torch
     
     device = 0 if torch.cuda.is_available() else -1
     print(f"Loading Depth Anything V2 on {'GPU' if device == 0 else 'CPU'}...")
     # Using the tiny/small model which takes ~100MB VRAM and runs instantly
     depth_pipe = pipeline("depth-estimation", model="depth-anything/Depth-Anything-V2-Small-hf", device=device)
-    return depth_pipe
+    
+    print("Loading AI Target Isolation Engine (CLIPSeg)...")
+    clipseg_processor = CLIPSegProcessor.from_pretrained("CIDAS/clipseg-rd64-refined")
+    clipseg_model = CLIPSegForImageSegmentation.from_pretrained("CIDAS/clipseg-rd64-refined")
+    
+    if device == 0:
+        clipseg_model.to("cuda")
+        
+    return {
+        "depth": depth_pipe,
+        "clipseg_proc": clipseg_processor,
+        "clipseg_model": clipseg_model,
+        "device": device
+    }
 
 def ai_depth_cloud(
     fa: FrameRecord, 
     camera: CameraIntrinsics, 
-    depth_pipe
+    depth_models: dict,
+    target_object: str | None = None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Generates a dense, photorealistic point cloud from a single frame using AI Depth."""
     from PIL import Image
+    import torch
     
     # Run the image through the Neural Network
     img_rgb = cv2.cvtColor(fa.image, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(img_rgb)
-    result = depth_pipe(pil_img)
+    result = depth_models["depth"](pil_img)
     
-    # The model outputs a depth map (255 = closest, 0 = furthest)
-    depth_map = np.array(result["depth"]).astype(np.float32)
+    # The model outputs a high-precision float tensor. We use this instead of the 8-bit quantized PIL image 
+    # to avoid the "sliced pyramid" terracing artifacts!
+    depth_map = result["predicted_depth"].cpu().numpy()
     
-    inv_depth = depth_map / 255.0 + 0.01 
+    # Normalize disparity (larger is closer) to 0.0 - 1.0
+    depth_map = depth_map - depth_map.min()
+    depth_map = depth_map / (depth_map.max() + 1e-6)
+    
+    # Add a realistic offset so the ratio of Furthest/Closest is 2:1
+    # instead of 100:1. This stops the Z-axis from stretching into a mountain!
+    inv_depth = depth_map + 1.0 
     raw_Z = 1.0 / inv_depth
     
-    # --- METRIC SCALE ALIGNMENT (DJI Terra / Polycam equivalent) ---
-    # Anchor the AI depth to true GPS dimensions
-    alt = float(fa.t_enu[2])
-    cam_z_axis = fa.R_enu[:, 2] 
-    
-    # If looking down, calculate exact ray distance to the ground plane (Z=0)
-    if cam_z_axis[2] < -0.1 and alt > 0:
-        true_depth_to_ground = -alt / cam_z_axis[2]
-    else:
-        true_depth_to_ground = 30.0 # fallback
-        
-    # Scale the AI output so median depth equals real-world metric depth
-    median_raw_Z = float(np.median(raw_Z))
-    scale_factor = true_depth_to_ground / median_raw_Z
+    # Dynamically anchor the Neural Depth scale to the true physical GPS altitude!
+    # This mathematically prevents the "deck of cards" smearing artifact across frames.
+    dist_to_ground = max(15.0, fa.t_enu[2])
+    current_median = float(np.median(raw_Z))
+    scale_factor = dist_to_ground / max(current_median, 1e-3)
     Z = raw_Z * scale_factor
     
     # Create pixel grid
@@ -200,19 +239,41 @@ def ai_depth_cloud(
     X = (u - cx) * Z / fx
     Y = (v - cy) * Z / fy
     
-    # Flatten into 3D points
-    pts_cam = np.stack((X, Y, Z), axis=-1).reshape(-1, 3)
-    colors = img_rgb.reshape(-1, 3) / 255.0
+    # Optional AI Target Isolation using CLIPSeg!
+    valid_mask = np.ones((h, w), dtype=bool)
+    if target_object:
+        print(f"Isolating target object: '{target_object}' using CLIPSeg...")
+        proc = depth_models["clipseg_proc"]
+        model = depth_models["clipseg_model"]
+        device_str = "cuda" if depth_models["device"] == 0 else "cpu"
+        
+        inputs = proc(text=[target_object], images=[pil_img], padding="max_length", return_tensors="pt").to(device_str)
+        with torch.no_grad():
+            outputs = model(**inputs)
+            preds = outputs.logits.unsqueeze(1)
+            
+        # CLIPSeg outputs 352x352 usually, resize back to original image
+        import torch.nn.functional as F
+        mask_tensor = F.interpolate(preds, size=(h, w), mode="bilinear", align_corners=False)
+        mask = torch.sigmoid(mask_tensor[0, 0]).cpu().numpy()
+        
+        # Threshold the mask (e.g., > 0.4 probability)
+        valid_mask = mask > 0.4
     
-    # Subsample (step=2 gives 4x more points than step=4 for photorealistic texture)
-    step = 2
-    pts_cam = pts_cam[::step]
+    # Flatten into 3D points in Camera Space
+    pts_cam = np.stack((X, Y, Z), axis=-1)[valid_mask].reshape(-1, 3)
+    colors = img_rgb[valid_mask].reshape(-1, 3) / 255.0
+    
+    # CRITICAL: Transform points from Local Camera Space to Global World Space!
+    # Without this, all frames overlap at origin (0,0,0) creating a glitchy mess.
+    world_pts = (fa.R_enu @ pts_cam.T).T + fa.t_enu
+    
+    # Sample down slightly to prevent crashing RAM when merging infinite frames
+    step = 2 
+    world_pts = world_pts[::step]
     colors = colors[::step]
     
-    # Transform from Camera space to World space using GPS Odometry
-    world = (fa.R_enu @ pts_cam.T).T + fa.t_enu
-    
     # Assume high confidence for AI depth
-    conf = np.full((world.shape[0],), 0.9, dtype=np.float32)
+    conf = np.full((world_pts.shape[0],), 0.9, dtype=np.float32)
     
-    return world.astype(np.float32), colors.astype(np.float32), conf
+    return world_pts.astype(np.float32), colors.astype(np.float32), conf
