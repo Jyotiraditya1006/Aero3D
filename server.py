@@ -1,3 +1,4 @@
+import json
 import shutil
 import zipfile
 from pathlib import Path
@@ -6,11 +7,21 @@ from typing import Optional
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from aero3d.pipeline import run_pipeline
 from aero3d.synthetic import generate_synthetic_mission
 
-app = FastAPI(title="Aero3D Web Backend")
+app = FastAPI(title="Aero3D Neural Engine")
+
+# Enable CORS for Vercel Frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # We will serve the static outputs directly
 OUTPUTS_DIR = Path("outputs/web")
