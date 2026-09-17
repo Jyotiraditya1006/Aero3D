@@ -663,10 +663,12 @@
                 }
             }, 2500);
 
+            const API_BASE = 'https://aero3d.onrender.com';
+            
             // Real-Time Backend Log Polling
             const termInterval = setInterval(async () => {
                 try {
-                    const lres = await fetch('/logs');
+                    const lres = await fetch(`${API_BASE}/logs`);
                     const ldata = await lres.json();
                     if(ldata.logs && ldata.logs.length > 0) {
                         terminalLogs.innerHTML = '';
@@ -689,7 +691,7 @@
             }, 500);
 
             try {
-                const res = await fetch('/generate', { method: 'POST', body: formData });
+                const res = await fetch(`${API_BASE}/generate`, { method: 'POST', body: formData });
                 const data = await res.json();
                 
                 clearInterval(stepInterval);
@@ -698,7 +700,7 @@
                 if (data.status === 'success') {
                     processingUi.style.display = 'none';
                     resultContainer.classList.remove('hidden');
-                    document.getElementById('download-link').href = data.download_url;
+                    document.getElementById('download-link').href = `${API_BASE}${data.download_url}`;
 
                     const m = data.metrics;
                     metricsContainer.innerHTML = `
@@ -710,16 +712,16 @@
                     `;
 
                     // Render the actual generated .ply output from your video!
-                    window.initViewer('/outputs/web/current_run/model/model_cloud.ply');
+                    window.initViewer(`${API_BASE}/outputs/web/current_run/model/model_cloud.ply`);
                     
                     // Show Cadastral Blueprint if generated
                     const orthoContainer = document.getElementById('cadastral-container');
                     if(data.ortho_url) {
                         orthoContainer.style.display = 'block';
                         const orthoImg = document.getElementById('ortho-img');
-                        orthoImg.src = data.ortho_url;
+                        orthoImg.src = `${API_BASE}${data.ortho_url}`;
                         orthoImg.classList.remove('hidden');
-                        document.getElementById('ortho-download').href = data.ortho_url;
+                        document.getElementById('ortho-download').href = `${API_BASE}${data.ortho_url}`;
                     } else {
                         orthoContainer.style.display = 'none';
                     }
