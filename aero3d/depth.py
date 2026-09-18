@@ -267,6 +267,15 @@ def ai_depth_cloud(
         mask_tensor = F.interpolate(preds, size=(h, w), mode="bilinear", align_corners=False)
         mask = torch.sigmoid(mask_tensor[0, 0]).cpu().numpy()
         valid_mask = mask > 0.4
+        
+        # Clean up PyTorch memory so laptops don't crash
+        del preds
+        del mask_tensor
+        del outputs
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        import gc
+        gc.collect()
     else:
         # AUTONOMOUS DYNAMIC OBJECT REMOVAL (NTRO Requirement 4)
         # If no specific target is requested, we still must mask out moving vehicles, humans, and animals!
@@ -293,6 +302,16 @@ def ai_depth_cloud(
         
         # Invert the mask: keep everything that is NOT a dynamic object!
         valid_mask = mask < 0.4
+        
+        # Clean up PyTorch memory so laptops don't crash
+        del preds
+        del mask_tensor
+        del combined_logits
+        del outputs
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        import gc
+        gc.collect()
     # Tactical Asset Geolocation (IMINT)
     # Project the detected dynamic objects into 3D World Space to extract their exact coordinates!
     intel_assets = []
@@ -322,5 +341,14 @@ def ai_depth_cloud(
     
     # Assume high confidence for AI depth
     conf = np.full((world_pts.shape[0],), 0.9, dtype=np.float32)
+    
+    # Free Depth model memory
+    del result
+    if 'depth_map' in locals():
+        del depth_map
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    import gc
+    gc.collect()
     
     return world_pts.astype(np.float32), colors.astype(np.float32), conf, intel_assets
