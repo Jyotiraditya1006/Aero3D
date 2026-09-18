@@ -156,6 +156,25 @@ def run_pipeline(
         except:
             pass
             
+    # Generate C4ISR GeoJSON Trajectory Path for QGIS / Google Earth
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "properties": {"name": "UAV Flight Path"},
+            "geometry": {
+                "type": "LineString",
+                "coordinates": []
+            }
+        }]
+    }
+    for f in frames:
+        e, n, u = f.t_enu
+        lat, lon, alt = enu_to_geodetic(e, n, u, origin["lat"], origin["lon"], origin["alt"])
+        geojson["features"][0]["geometry"]["coordinates"].append([lon, lat, alt])
+        
+    (out / "trajectory.geojson").write_text(json.dumps(geojson, indent=2), encoding="utf-8")
+            
     payload["tactical_intel"] = intel_report
     (out / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     (out / "tactical_intel.json").write_text(json.dumps(intel_report, indent=2), encoding="utf-8")

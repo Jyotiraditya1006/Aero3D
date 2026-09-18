@@ -205,7 +205,18 @@ def ai_depth_cloud(
     
     # Run the image through the Neural Network
     img_rgb = cv2.cvtColor(fa.image, cv2.COLOR_BGR2RGB)
-    pil_img = Image.fromarray(img_rgb)
+    
+    # NTRO Challenge (iii) Variable illumination and shadows
+    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) in LAB color space 
+    # to dynamically normalize shadows and highlights before AI depth extraction
+    lab = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2LAB)
+    l_channel, a_channel, b_channel = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    cl = clahe.apply(l_channel)
+    limg = cv2.merge((cl, a_channel, b_channel))
+    norm_img = cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
+    
+    pil_img = Image.fromarray(norm_img)
     result = depth_models["depth"](pil_img)
     
     # The model outputs a high-precision float tensor. We use this instead of the 8-bit quantized PIL image 
