@@ -139,4 +139,6 @@ def get_logs():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    # Critical Fix: Do not use reload=True in production or demo environments!
+    # Writing the ZIP file to disk was triggering Uvicorn's file watcher and rebooting the server mid-request!
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=False)
