@@ -78,24 +78,7 @@ def run_pipeline(
             chunks_p.append(pts)
             chunks_c.append(cols)
             chunks_k.append(conf)
-        if progress:
-            progress('Fusing AI Neural Frame 48/48...', 0.6)
-            progress('AI GPU Neural Extraction Complete', 0.75)
-        gt_pts = np.load(str(Path(video_path).parent / 'gt_points.npy'))
-        chunks_p.append(gt_pts)
-        chunks_c.append(np.ones_like(gt_pts) * np.array([0.2, 0.8, 0.3], dtype=np.float32))
-        chunks_k.append(np.ones((gt_pts.shape[0],), dtype=np.float32))
-    else:
-        for i, f in enumerate(selected_frames):
-            if progress:
-                progress(f'Fusing AI Neural Frame {i+1}/{len(selected_frames)}...', 0.35 + (0.4 * (i / len(selected_frames))))
-            pts, cols, conf, intel_assets = ai_depth_cloud(f, camera, depth_pipe, target_object=target_object)
-            all_tactical_assets.extend(intel_assets)
-            if pts.shape[0] > 0:
-                pts, cols, conf = voxel_downsample(pts, cols, conf, float(cfg['cloud']['voxel_m']))
-                chunks_p.append(pts)
-                chunks_c.append(cols)
-                chunks_k.append(conf)
+
     if progress:
         progress("AI GPU Neural Extraction Complete", 0.75)
     
