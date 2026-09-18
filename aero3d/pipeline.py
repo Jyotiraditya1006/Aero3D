@@ -56,17 +56,8 @@ def run_pipeline(
     print("Activating True Multi-Frame Neural Depth Fusion across ALL frames!")
     
     # Process every 2nd frame to ensure extremely dense overlap while preventing out-of-memory errors
-    # Initialize AI models (only if we actually need them)
-    depth_pipe = None
-    
-    # NTRO Hackathon Demo Bypass: 
-    # If this is the Synthetic Flight, bypass the heavy PyTorch inference to prevent laptop GPU crashes!
-    # We mathematically generated the Ground Truth (GT) points in synthetic.py, so we just use those directly.
-    is_synthetic = (Path(video_path).parent / "gt_points.npy").exists()
-    
-    if not is_synthetic:
-        tick("AI Monocular Depth Extraction (Depth Anything V2)", 0.3)
-        depth_pipe = init_ai_depth_pipeline()
+    tick("AI Monocular Depth Extraction (Depth Anything V2)", 0.3)
+    depth_pipe = init_ai_depth_pipeline()
 
     step = 2
     selected_frames = frames[::step]
@@ -74,8 +65,16 @@ def run_pipeline(
     chunks_p, chunks_c, chunks_k = [], [], []
     all_tactical_assets = []
     
-    if is_synthetic:
-        print('DEBUG: Synthetic Mode Active. Bypassing PyTorch to guarantee no crashes.')
+    for i, f in enumerate(selected_frames):
+        if progress:
+            progress(f'Fusing AI Neural Frame {i+1}/{len(selected_frames)}...', 0.35 + (0.4 * (i / len(selected_frames))))
+        pts, cols, conf, intel_assets = ai_depth_cloud(f, camera, depth_pipe, target_object=target_object)
+        all_tactical_assets.extend(intel_assets)
+        if pts.shape[0] > 0:
+            pts, cols, conf = voxel_downsample(pts, cols, conf, float(cfg['cloud']['voxel_m']))
+            chunks_p.append(pts)
+            chunks_c.append(cols)
+            chunks_k.append(conf)
         if progress:
             progress('Fusing AI Neural Frame 48/48...', 0.6)
             progress('AI GPU Neural Extraction Complete', 0.75)
