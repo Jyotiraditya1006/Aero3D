@@ -96,11 +96,26 @@ def generate_model(
                 
         ortho_url = "/outputs/web/current_run/model/ortho.png" if (out_model_dir / "ortho.png").exists() else None
         
+        # Load the tactical intel from disk since it was just saved by the pipeline
+        import json
+        tactical_intel = []
+        if (out_model_dir / "tactical_intel.json").exists():
+            with open(out_model_dir / "tactical_intel.json", "r") as f:
+                tactical_intel = json.load(f)
+                
+        # Also zip the GeoJSON and Tactical Intel so the user can download them
+        with zipfile.ZipFile(zip_path, 'a', zipfile.ZIP_DEFLATED) as zf:
+            if (out_model_dir / "trajectory.geojson").exists():
+                zf.write(out_model_dir / "trajectory.geojson", "trajectory.geojson")
+            if (out_model_dir / "tactical_intel.json").exists():
+                zf.write(out_model_dir / "tactical_intel.json", "tactical_intel.json")
+        
         return {
             "status": "success", 
             "download_url": "/download/aero3d_model.zip", 
             "metrics": result.metrics,
-            "ortho_url": ortho_url
+            "ortho_url": ortho_url,
+            "tactical_intel": tactical_intel
         }
     
     except Exception as e:
