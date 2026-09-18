@@ -630,13 +630,15 @@
                 tSynth.className = "flex-1 py-3 text-sm font-medium rounded-lg text-neutral-400 hover:text-white transition-all";
                 inputVid.style.display = 'block';
                 document.getElementById('input-telemetry').style.display = 'block';
+                // Target stays visible in both
                 document.getElementById('input-target').style.display = 'block';
             } else {
                 tSynth.className = "flex-1 py-3 text-sm font-semibold rounded-lg bg-white text-black transition-all shadow-lg";
                 tDrone.className = "flex-1 py-3 text-sm font-medium rounded-lg text-neutral-400 hover:text-white transition-all";
                 inputVid.style.display = 'none';
                 document.getElementById('input-telemetry').style.display = 'none';
-                document.getElementById('input-target').style.display = 'none';
+                // Keep target visible for Synthetic so judges can test IMINT
+                document.getElementById('input-target').style.display = 'block';
             }
         };
 
