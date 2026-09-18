@@ -738,11 +738,11 @@
 
                     const m = data.metrics;
                     metricsContainer.innerHTML = `
-                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800 shadow-inner"><div class="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Density</div><div class="text-xl font-bold">${m.density_per_m2.toFixed(1)}/m²</div></div>
+                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800 shadow-inner"><div class="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Density</div><div class="text-xl font-bold">${m.density_per_m2 ? m.density_per_m2.toFixed(1) : 0}/m²</div></div>
                         <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800 shadow-inner"><div class="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Scale Error</div><div class="text-xl font-bold text-emerald-400">< 2%</div></div>
-                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800 shadow-inner"><div class="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Points</div><div class="text-xl font-bold">${m.point_count.toLocaleString()}</div></div>
-                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800 shadow-inner"><div class="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Area</div><div class="text-xl font-bold">${m.coverage_area_m2.toFixed(0)} m²</div></div>
-                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800 shadow-inner"><div class="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Engine Time</div><div class="text-xl font-bold text-amber-400">${m.processing_time_s.toFixed(1)}s</div></div>
+                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800 shadow-inner"><div class="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Points</div><div class="text-xl font-bold">${m.point_count ? m.point_count.toLocaleString() : 0}</div></div>
+                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800 shadow-inner"><div class="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Area</div><div class="text-xl font-bold">${m.footprint_area_m2 ? m.footprint_area_m2.toFixed(0) : 0} m²</div></div>
+                        <div class="bg-neutral-900 p-4 rounded-xl border border-neutral-800 shadow-inner"><div class="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Engine Time</div><div class="text-xl font-bold text-amber-400">${m.elapsed_s ? m.elapsed_s.toFixed(1) : 0}s</div></div>
                     `;
                     
                     // Show Tactical Intel if present
