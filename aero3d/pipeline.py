@@ -71,7 +71,10 @@ def run_pipeline(
         pts, cols, conf, intel_assets = ai_depth_cloud(f, camera, depth_pipe, target_object=target_object)
         all_tactical_assets.extend(intel_assets)
         if pts.shape[0] > 0:
-            pts, cols, conf = voxel_downsample(pts, cols, conf, float(cfg['cloud']['voxel_m']))
+            # CRITICAL: We MUST aggressively downsample each individual frame BEFORE storing it.
+            # Otherwise we accumulate 24+ million points and instantly crash the laptop's RAM during concatenation.
+            frame_voxel = max(float(cfg['cloud']['voxel_m']), 1.0)
+            pts, cols, conf = voxel_downsample(pts, cols, conf, frame_voxel)
             chunks_p.append(pts)
             chunks_c.append(cols)
             chunks_k.append(conf)
