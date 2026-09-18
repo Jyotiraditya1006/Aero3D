@@ -252,13 +252,36 @@ def ai_depth_cloud(
             outputs = model(**inputs)
             preds = outputs.logits.unsqueeze(1)
             
-        # CLIPSeg outputs 352x352 usually, resize back to original image
         import torch.nn.functional as F
         mask_tensor = F.interpolate(preds, size=(h, w), mode="bilinear", align_corners=False)
         mask = torch.sigmoid(mask_tensor[0, 0]).cpu().numpy()
-        
-        # Threshold the mask (e.g., > 0.4 probability)
         valid_mask = mask > 0.4
+    else:
+        # AUTONOMOUS DYNAMIC OBJECT REMOVAL (NTRO Requirement 4)
+        # If no specific target is requested, we still must mask out moving vehicles, humans, and animals!
+        print("Autonomously masking out dynamic objects (vehicles, humans)...")
+        proc = depth_models["clipseg_proc"]
+        model = depth_models["clipseg_model"]
+        device_str = "cuda" if depth_models["device"] == 0 else "cpu"
+        
+        # Ask CLIPSeg to find things that usually move and ruin 3D scans
+        dynamic_prompts = ["car", "person", "animal", "vehicle"]
+        inputs = proc(text=dynamic_prompts, images=[pil_img]*len(dynamic_prompts), padding="max_length", return_tensors="pt").to(device_str)
+        
+        with torch.no_grad():
+            outputs = model(**inputs)
+            # outputs.logits is shape (4, 352, 352)
+            preds = outputs.logits.unsqueeze(1) # (4, 1, 352, 352)
+            
+        import torch.nn.functional as F
+        mask_tensor = F.interpolate(preds, size=(h, w), mode="bilinear", align_corners=False)
+        
+        # Combine probabilities from all dynamic prompts (max across batch)
+        combined_logits, _ = torch.max(mask_tensor, dim=0) # (1, H, W)
+        mask = torch.sigmoid(combined_logits[0]).cpu().numpy()
+        
+        # Invert the mask: keep everything that is NOT a dynamic object!
+        valid_mask = mask < 0.4
     
     # Flatten into 3D points in Camera Space
     pts_cam = np.stack((X, Y, Z), axis=-1)[valid_mask].reshape(-1, 3)

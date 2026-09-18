@@ -17,10 +17,28 @@ def load_telemetry(path: str | Path) -> Telemetry:
     if p.suffix.lower() in {".csv", ".txt"}:
         return _from_csv(p)
     if p.suffix.lower() == ".srt":
-        return _from_srt(p)
-    if p.suffix.lower() in {".mp4", ".mov", ".avi"}:
-        return _from_video_srt(p)
-    raise ValueError(f"Unsupported telemetry format: {p.suffix}")
+        telemetry = _from_srt(p)
+    elif p.suffix.lower() in {".mp4", ".mov", ".avi"}:
+        telemetry = _from_video_srt(p)
+    else:
+        raise ValueError(f"Unsupported telemetry format: {p.suffix}")
+        
+    # NTRO Requirement (v): GPS inaccuracies and sensor noise
+    # Apply a moving average filter to lat, lon, alt to smooth out DJI sensor jumps
+    window = 5
+    if len(telemetry.samples) >= window:
+        pad = window // 2
+        lats = [s.lat for s in telemetry.samples]
+        lons = [s.lon for s in telemetry.samples]
+        alts = [s.alt for s in telemetry.samples]
+        for i in range(len(telemetry.samples)):
+            start = max(0, i - pad)
+            end = min(len(telemetry.samples), i + pad + 1)
+            telemetry.samples[i].lat = sum(lats[start:end]) / (end - start)
+            telemetry.samples[i].lon = sum(lons[start:end]) / (end - start)
+            telemetry.samples[i].alt = sum(alts[start:end]) / (end - start)
+            
+    return telemetry
 
 def _dummy_telemetry():
     # Creates a basic 1-minute dummy flight starting at 0,0,0
