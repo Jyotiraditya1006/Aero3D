@@ -61,12 +61,14 @@ def run_pipeline(
     selected_frames = frames[::step]
     
     chunks_p, chunks_c, chunks_k = [], [], []
+    all_tactical_assets = []
     
     for i, f in enumerate(selected_frames):
         if progress:
             progress(f"Fusing AI Neural Frame {i+1}/{len(selected_frames)}...", 0.35 + (0.4 * (i / len(selected_frames))))
             
-        pts, cols, conf = ai_depth_cloud(f, camera, depth_pipe, target_object=target_object)
+        pts, cols, conf, intel_assets = ai_depth_cloud(f, camera, depth_pipe, target_object=target_object)
+        all_tactical_assets.extend(intel_assets)
         
         if pts.shape[0] > 0:
             chunks_p.append(pts)
@@ -137,7 +139,31 @@ def run_pipeline(
             "height": camera.height,
         },
     }
+    
+    # Process Tactical IMINT (Image Intelligence)
+    from aero3d.geo import enu_to_geodetic
+    intel_report = []
+    for asset in all_tactical_assets:
+        try:
+            e, n, u = asset["enu"]
+            lat, lon, alt = enu_to_geodetic(e, n, u, origin["lat"], origin["lon"], origin["alt"])
+            intel_report.append({
+                "type": asset["type"],
+                "lat": lat,
+                "lon": lon,
+                "alt": alt
+            })
+        except:
+            pass
+            
+    payload["tactical_intel"] = intel_report
     (out / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    (out / "tactical_intel.json").write_text(json.dumps(intel_report, indent=2), encoding="utf-8")
+    
+    # Send final intelligence extraction log
+    if progress and len(intel_report) > 0:
+        progress(f"[SYS] Extracted {len(intel_report)} Tactical Assets (GPS logged)", 0.95)
+        
     tick("Done", 1.0)
     return ReconstructionResult(
         points=points,

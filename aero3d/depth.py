@@ -282,13 +282,26 @@ def ai_depth_cloud(
         
         # Invert the mask: keep everything that is NOT a dynamic object!
         valid_mask = mask < 0.4
+    # Tactical Asset Geolocation (IMINT)
+    # Project the detected dynamic objects into 3D World Space to extract their exact coordinates!
+    intel_assets = []
+    asset_mask = mask > 0.6 if 'mask' in locals() else np.zeros((h, w), dtype=bool)
+    if np.any(asset_mask):
+        asset_pts_cam = np.stack((X, Y, Z), axis=-1)[asset_mask].reshape(-1, 3)
+        asset_world_pts = (fa.R_enu @ asset_pts_cam.T).T + fa.t_enu
+        if asset_world_pts.shape[0] > 0:
+            # Get the median coordinate of the detected threat
+            center_enu = np.median(asset_world_pts, axis=0)
+            intel_assets.append({
+                "type": target_object if target_object else "Dynamic Entity (Vehicle/Human)",
+                "enu": center_enu.tolist()
+            })
     
-    # Flatten into 3D points in Camera Space
+    # Flatten into 3D points in Camera Space (Only keeping STATIC geometry)
     pts_cam = np.stack((X, Y, Z), axis=-1)[valid_mask].reshape(-1, 3)
     colors = img_rgb[valid_mask].reshape(-1, 3) / 255.0
     
     # CRITICAL: Transform points from Local Camera Space to Global World Space!
-    # Without this, all frames overlap at origin (0,0,0) creating a glitchy mess.
     world_pts = (fa.R_enu @ pts_cam.T).T + fa.t_enu
     
     # Sample down slightly to prevent crashing RAM when merging infinite frames
@@ -299,4 +312,4 @@ def ai_depth_cloud(
     # Assume high confidence for AI depth
     conf = np.full((world_pts.shape[0],), 0.9, dtype=np.float32)
     
-    return world_pts.astype(np.float32), colors.astype(np.float32), conf
+    return world_pts.astype(np.float32), colors.astype(np.float32), conf, intel_assets
