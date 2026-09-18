@@ -72,7 +72,6 @@ def run_pipeline(
         
         if pts.shape[0] > 0:
             # Memory Optimization: Downsample the frame immediately to prevent OOM on standard laptops!
-            from aero3d.cloud import voxel_downsample
             pts, cols, conf = voxel_downsample(pts, cols, conf, float(cfg["cloud"]["voxel_m"]))
             
             chunks_p.append(pts)
