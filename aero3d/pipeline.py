@@ -136,6 +136,34 @@ def run_pipeline(
     if verts is not None:
         write_ply_mesh(out / "model_mesh.ply", verts, faces, vcol)
 
+    # --- ADVANCED 3D TEXTURED RECONSTRUCTION (OPEN3D POISSON) ---
+    print("DEBUG: Generating Solid Textured Poisson Mesh...")
+    try:
+        import open3d as o3d
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points.astype(np.float64))
+        pcd.colors = o3d.utility.Vector3dVector(colors.astype(np.float64))
+        pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=5.0, max_nn=50))
+        pcd.orient_normals_towards_camera_location(camera_location=np.array([0., 0., 1000.]))
+        
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
+        vertices_to_remove = densities < np.quantile(densities, 0.05)
+        mesh.remove_vertices_by_mask(vertices_to_remove)
+        
+        # Color Transfer
+        pcd_tree = o3d.geometry.KDTreeFlann(pcd)
+        mesh_colors = []
+        mesh_verts = np.asarray(mesh.vertices)
+        pcd_colors = np.asarray(pcd.colors)
+        for v in mesh_verts:
+            [_, idx, _] = pcd_tree.search_knn_vector_3d(v, 1)
+            mesh_colors.append(pcd_colors[idx[0]])
+        mesh.vertex_colors = o3d.utility.Vector3dVector(np.asarray(mesh_colors))
+        o3d.io.write_triangle_mesh(str(out / "model_mesh_colored.ply"), mesh)
+        print("DEBUG: Solid Textured Mesh Generated!")
+    except Exception as e:
+        print(f"DEBUG: Open3D Meshing Failed: {e}")
+
     np.save(out / "dsm.npy", dsm)
     ortho_img.save(out / "ortho.png")
     traj = np.stack([f.t_enu for f in frames])

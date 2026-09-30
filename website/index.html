@@ -533,9 +533,29 @@
                 gridHelper.visible = false;
                 scene.add(gridHelper);
                 
-                // Dynamically scale point size so they look perfectly solid and dense!
-                let pointSize = Math.max(0.1, radius * 0.004);
-                let material = new THREE.PointsMaterial({ size: pointSize, vertexColors: geometry.hasAttribute('color'), color: 0xffffff, sizeAttenuation: true });
+                // Check if the PLY is a Mesh (has faces/indices) or just a Point Cloud
+                let object3D;
+                if (geometry.index !== null) {
+                    // It is a Solid Mesh!
+                    const material = new THREE.MeshStandardMaterial({ 
+                        vertexColors: geometry.hasAttribute('color'), 
+                        color: geometry.hasAttribute('color') ? 0xffffff : 0xaaaaaa,
+                        roughness: 0.8, 
+                        metalness: 0.1,
+                        side: THREE.DoubleSide
+                    });
+                    object3D = new THREE.Mesh(geometry, material);
+                } else {
+                    // It is a Point Cloud
+                    let pointSize = Math.max(0.1, radius * 0.004);
+                    const material = new THREE.PointsMaterial({ 
+                        size: pointSize, 
+                        vertexColors: geometry.hasAttribute('color'), 
+                        color: 0xffffff, 
+                        sizeAttenuation: true 
+                    });
+                    object3D = new THREE.Points(geometry, material);
+                }
 
                 // Backup original colors for Heatmap toggle
                 let originalColors = null;
@@ -561,9 +581,8 @@
                     heatmapColors = new THREE.BufferAttribute(colors, 3);
                 }
 
-                const points = new THREE.Points(geometry, material);
-                points.rotation.x = -Math.PI / 2; // Z up
-                scene.add(points);
+                object3D.rotation.x = -Math.PI / 2; // Z up
+                scene.add(object3D);
 
                 loading.style.display = 'none';
 
